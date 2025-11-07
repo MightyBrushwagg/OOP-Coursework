@@ -116,6 +116,7 @@ for i in range(num_grippers):
 
 p.disconnect()
 
+print(positions.values.tolist())
 # print(positions)
 # print(orientations)
 

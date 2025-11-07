@@ -6,6 +6,8 @@ import pandas as pd
 import numpy as np
 from objects import Box, Cylinder
 from grippers import TwoFingerGripper
+from RandDataset import pos
+import random
 
 class Simulation:
 
@@ -52,7 +54,7 @@ class Simulation:
 
     def create_scene(self, object, gripper):
         self.object = Simulation.obj_dic[object]([0,0,0])
-        self.gripper = Simulation.gripper_dic[gripper]([0,1,1])
+        self.gripper = Simulation.gripper_dic[gripper](pos[random.randint(0, len(pos) - 1)])
         obj_id = self.object.load()
         self.object.update_name(obj_id)
 
@@ -60,8 +62,8 @@ class Simulation:
         self.gripper.load()
         self.gripper.start()
         self.gripper.attach_fixed(offset=[0.2, 0, 0])
-        self.gripper.update_camera(z=0.7, yaw=0.0)
-        # gripper.grasp_and_lift(self.object)
+        # self.gripper.update_camera(z=0.7, yaw=0.0) # Allows camera free roam
+        self.gripper.grasp_and_lift(self.object)
 
 
     def reset_scene(self):
@@ -69,7 +71,7 @@ class Simulation:
             p.removeConstraint(self.gripper.constraint_id)
         p.removeBody(self.gripper.id)
 
-        p.removeBody(self.objects.id)
+        p.removeBody(self.object.id)
 
     def set_random_position(self):
         # input: current dataset?
