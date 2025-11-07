@@ -21,17 +21,29 @@ class Simulation:
     }
 
     def __init__(self, iterations, data=None, object="box", gripper="two_finger"):
-
+        self.positionSuccess = {}
         self.start_simulation()
-
+        step_threshold = 1200 # 5 seconds at 240Hz
+        step_count = 0
         for i in range(iterations):
+            self.startPosition = pos[random.randint(0, len(pos) - 1)]
+            verify_once = True
             self.run_one(object, gripper)
-            for j in range(1000):
+            for j in range(2000):
                 p.stepSimulation()
-                time.sleep(1./240.)
+                #time.sleep(1./240.)
+                contact_points = p.getContactPoints(self.gripper.id, self.object.id)
+                if len(contact_points) > 0:
+                    step_count += 1
+                    if step_count >= step_threshold and verify_once == True:
+                        print("Grasped Successfully")
+                        self.positionSuccess[tuple(self.startPosition)] = True
+                        verify_once = False
             self.reset_scene()
-
+        print(self.positionSuccess)
         p.disconnect()
+
+
 
     def start_simulation(self):
         p.connect(p.GUI)
@@ -54,7 +66,7 @@ class Simulation:
 
     def create_scene(self, object, gripper):
         self.object = Simulation.obj_dic[object]([0,0,0])
-        self.gripper = Simulation.gripper_dic[gripper](pos[random.randint(0, len(pos) - 1)])
+        self.gripper = Simulation.gripper_dic[gripper](self.startPosition)
         obj_id = self.object.load()
         self.object.update_name(obj_id)
 

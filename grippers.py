@@ -110,7 +110,7 @@ class TwoFingerGripper(Gripper):
         target_pos, approach_pos = self.target_position(obj)
         roll, pitch, yaw = self.generate_angles(approach_pos, target_pos) # Generate angles based on offset obj pos
         grasp_height = obj.grasp_height
-
+        time_step = 1./240.
         # --- Set friction on contact surfaces ---
         p.changeDynamics(obj.id, -1, lateralFriction=2.0, rollingFriction=0.1, spinningFriction=0.1)
         p.changeDynamics(self.id, -1, lateralFriction=2.0, rollingFriction=0.1, spinningFriction=0.1)
@@ -119,14 +119,14 @@ class TwoFingerGripper(Gripper):
         self.move(target_pos[0], target_pos[1], target_pos[2] + 0.2, roll, pitch, yaw)
         for _ in range(100):
             p.stepSimulation()
-            time.sleep(1./240.)
+            time.sleep(time_step)
 
         # --- Lower onto object ---
         self.move(target_pos[0], target_pos[1], grasp_height, roll, pitch, yaw)
         print("\033[93mmove to the grasp height")
         for _ in range(100):
             p.stepSimulation()
-            time.sleep(1./240.)
+            time.sleep(time_step)
 
         # --- Close gripper strongly ---
         for joint in [0, 2]:
@@ -134,22 +134,15 @@ class TwoFingerGripper(Gripper):
                                     targetPosition=0.12, force=300, maxVelocity=2)
         for _ in range(100):  # allow contact to form
             p.stepSimulation()
-            time.sleep(1./240.)
+            time.sleep(time_step)
 
         # --- Continuous hold while lifting step-by-step ---
         z_current = grasp_height
         z_target = lift_height
         z_step = (z_target - z_current) / lift_steps
-        time_gripped = 0
-        time_step = 1./240.
-        verify_once = True
+
         for _ in range(lift_steps):
             z_current += z_step
-            if z_current >= z_target:
-                time_gripped += time_step
-                if time_gripped >= 5 and verify_once == True:
-                    print("Grasped Succsefully")
-                    verify_once = False
             self.move(target_pos[0], target_pos[1], z_current, roll, pitch, yaw)
 
             # Continuously reapply strong grip to prevent slip
