@@ -4,6 +4,13 @@ from data import Data
 
 
 if __name__ == "__main__":
-    sim = Simulation(100, object="cube")
+    sim = Simulation(300, object="cube")
     # data = Data()
-    # data.add_data(1,2,3,4,5,6,7)
+    # data.import_data("cube-twofingergripper")
+    # data.remove_nans()
+    # data.visualise_data()
+    # data.statistics()
+
+
+
+

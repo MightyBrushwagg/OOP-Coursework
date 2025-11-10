@@ -22,7 +22,7 @@ class Simulation:
     }
 
     def __init__(self, iterations, object="cylinder", gripper="two_finger"):
-        self.data = Data()
+        self.data = Data(num_points=iterations*2 + 100)
         self.positionSuccess = {}
         self.start_simulation()
         step_threshold = 3*240 # 3 seconds at 240Hz = 720
@@ -33,6 +33,8 @@ class Simulation:
         p.disconnect()
         print(self.data.data)
         self.save_data()
+        self.data.statistics()
+        self.data.visualise_data()
 
     def run_simulations(self, iterations, object, gripper, step_threshold, step_count):
         for i in range(iterations):
@@ -77,10 +79,7 @@ class Simulation:
         self.create_scene(object=object, gripper=gripper, gripper_pos=gripper_pos, gripper_ori=gripper_ori)
         
     def save_data(self):
-        self.data.data.to_csv("cube-twofingergripper")
-
-    def upload_data(self):
-        pass
+        self.data.upload_data("cube-twofingergripper")
 
     def create_scene(self, object, gripper, gripper_pos = [0,0,0], gripper_ori=[0,0,0]):
         self.object = Simulation.obj_dic[object]([0,0,0])
