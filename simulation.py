@@ -48,8 +48,9 @@ class Simulation:
             for j in range(2000):
                 p.stepSimulation()
                 # time.sleep(1./240.)
-                contact_points = p.getContactPoints(self.gripper.id, self.object.id)
-                if len(contact_points) > 0:
+                contact_points_gripper = p.getContactPoints(self.gripper.id, self.object.id)
+                contact_points_plane = p.getContactPoints(self.object.id, self.plane_id)
+                if len(contact_points_gripper) >= 2 and len(contact_points_plane) == 0:
                     step_count += 1
                     if step_count >= step_threshold and verify_once == True:
                         print("Success")
@@ -65,15 +66,16 @@ class Simulation:
             run_data["success"] = not verify_once
             self.data.data.loc[i] = run_data
         print(self.positionSuccess.values())
+# Add in ground contacts + limit gripper contact to 2 
 
     def start_simulation(self):
-        p.connect(p.GUI)
+        p.connect(p.GUI) # GUI = visual, Direct = no visuals = Faster
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
         p.resetSimulation()
         p.setGravity(0, 0, -10)
         p.setRealTimeSimulation(0)
-        plane_id = p.loadURDF("plane.urdf")
-        return plane_id
+        self.plane_id = p.loadURDF("plane.urdf")
+        return self.plane_id
     
     def run_one(self, object, gripper, gripper_pos = [0,0,0], gripper_ori=[0,0,0]):
         self.create_scene(object=object, gripper=gripper, gripper_pos=gripper_pos, gripper_ori=gripper_ori)
@@ -82,12 +84,11 @@ class Simulation:
         self.data.upload_data("cube-twofingergripper")
 
     def create_scene(self, object, gripper, gripper_pos = [0,0,0], gripper_ori=[0,0,0]):
-        self.object = Simulation.obj_dic[object]([0,0,0])
+        self.object = Simulation.obj_dic[object]([0,0,0.075])
         self.gripper = Simulation.gripper_dic[gripper](base_position=gripper_pos, orientation=gripper_ori) # , orientation=gripper_ori
         obj_id = self.object.load()
         self.object.update_name(obj_id)
 
-        
         self.gripper.load()
         self.gripper.start()
         self.gripper.attach_fixed(offset=[0.2, 0, 0])
