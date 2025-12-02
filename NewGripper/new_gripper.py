@@ -5,6 +5,23 @@ import math
 import os
 from collections import namedtuple
 
+# ========== CONSTANTS ==========
+TIME_STEP = 1.0 / 240.0
+GRIPPER_OFFSET = 0.125  # Height offset from object to gripper base
+APPROACH_OFFSET = 0.15  # Extra height for approach phase
+CLOSE_GAP = 0.001  # Gap left when closing (meters)
+MAX_GRIP_FORCE = 2000
+GRIP_VELOCITY = 0.5
+
+# Friction and contact parameters
+FRICTION_PARAMS = {
+    'lateralFriction': 20.0,
+    'rollingFriction': 0.5,
+    'spinningFriction': 0.5,
+    'contactStiffness': 10000,
+    'contactDamping': 2000
+}
+
 # Get the directory where this script is located
 script_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(script_dir)
@@ -30,234 +47,160 @@ box_pos = [0, 0, 0.03]
 box_id = p.loadURDF(os.path.join(script_dir, "cube_small.urdf"), box_pos)
 
 
-# ---------- Load Free-Flying Gripper ----------
+# ---------- Load Gripper with Fixed Constraint ----------
 gripper_start_pos = [0,0,1]
 gripper_start_ori = p.getQuaternionFromEuler([math.pi,0,0])
 gripper_id = p.loadURDF(os.path.join(script_dir, "robotiq_2f_85", "robotiq.urdf"), 
                          gripper_start_pos, gripper_start_ori, useFixedBase=False)
 
-# ---------- Parse joints ----------
-num_joints = p.getNumJoints(gripper_id)
-JointInfo = namedtuple('JointInfo',['id','name','type','lower','upper','maxForce'])
+# Create a fixed constraint to hold gripper in place (like simulation.py does)
+constraint_id = p.createConstraint(
+    parentBodyUniqueId=gripper_id,
+    parentLinkIndex=-1,
+    childBodyUniqueId=-1,
+    childLinkIndex=-1,
+    jointType=p.JOINT_FIXED,
+    jointAxis=[0, 0, 0],
+    parentFramePosition=[0, 0, 0],
+    childFramePosition=gripper_start_pos,
+    childFrameOrientation=gripper_start_ori
+)
+
+# ---------- Parse and disable default joint motors ----------
+JointInfo = namedtuple('JointInfo', ['id', 'name', 'type', 'lower', 'upper', 'maxForce'])
 joints = []
-for i in range(num_joints):
+
+for i in range(p.getNumJoints(gripper_id)):
     info = p.getJointInfo(gripper_id, i)
-    jid = info[0]
-    name = info[1].decode()
-    jtype = info[2]
-    lower = info[8]
-    upper = info[9]
-    maxForce = info[10]
-    joints.append(JointInfo(jid,name,jtype,lower,upper,maxForce))
-    p.setJointMotorControl2(gripper_id,jid,p.VELOCITY_CONTROL,targetVelocity=0,force=0)
+    joints.append(JointInfo(info[0], info[1].decode(), info[2], info[8], info[9], info[10]))
+    p.setJointMotorControl2(gripper_id, i, p.VELOCITY_CONTROL, targetVelocity=0, force=0)
 
-# ---------- Mimic Joint Setup ----------
-mimic_parent_name = 'finger_joint'
-mimic_children_names = {'right_outer_knuckle_joint':1,
-                        'left_inner_knuckle_joint':1,
-                        'right_inner_knuckle_joint':1,
-                        'left_inner_finger_joint':-1,
-                        'right_inner_finger_joint':-1}
+# ---------- Setup mimic joints (link fingers together) ----------
+mimic_parent_id = next(j.id for j in joints if j.name == 'finger_joint')
+mimic_children = {
+    'right_outer_knuckle_joint': 1, 'left_inner_knuckle_joint': 1,
+    'right_inner_knuckle_joint': 1, 'left_inner_finger_joint': -1,
+    'right_inner_finger_joint': -1
+}
 
-mimic_parent_id = [j.id for j in joints if j.name==mimic_parent_name][0]
-mimic_child_multiplier = {j.id: mimic_children_names[j.name] for j in joints if j.name in mimic_children_names}
+for joint in joints:
+    if joint.name in mimic_children:
+        c = p.createConstraint(gripper_id, mimic_parent_id, gripper_id, joint.id,
+                               jointType=p.JOINT_GEAR, jointAxis=[0, 1, 0],
+                               parentFramePosition=[0, 0, 0], childFramePosition=[0, 0, 0])
+        p.changeConstraint(c, gearRatio=-mimic_children[joint.name], maxForce=100, erp=1)
 
-# Create mimic constraints
-for joint_id, multiplier in mimic_child_multiplier.items():
-    c = p.createConstraint(gripper_id,mimic_parent_id,
-                           gripper_id,joint_id,
-                           jointType=p.JOINT_GEAR,
-                           jointAxis=[0,1,0],
-                           parentFramePosition=[0,0,0],
-                           childFramePosition=[0,0,0])
-    p.changeConstraint(c,gearRatio=-multiplier,maxForce=100,erp=1)
+gripper_range = [0, 0.085]  # min open, max open
 
-gripper_range = [0,0.085]  # min open, max open
+def step_simulation():
+    """Single simulation step with proper timing."""
+    p.stepSimulation()
+    time.sleep(TIME_STEP)
 
-def move_gripper(open_length):
-    open_angle = 0.715 - math.asin((open_length-0.010)/0.1143)
-    p.setJointMotorControl2(gripper_id,mimic_parent_id,p.POSITION_CONTROL,
-                            targetPosition=open_angle, force=60)  # increase force
+def calc_gripper_angle(open_length):
+    """Calculate gripper joint angle from opening length."""
+    return 0.715 - math.asin((open_length - 0.010) / 0.1143)
 
-def set_gripper_position(pos, use_velocity=False):
-    """
-    Move gripper to position. 
-    If use_velocity=True, uses velocity control to avoid clipping.
-    Otherwise uses position reset (only safe before grasping).
-    """
-    if use_velocity:
-        # Get current position
-        current_pos, current_ori = p.getBasePositionAndOrientation(gripper_id)
-        # Calculate velocity needed
-        velocity = [(pos[i] - current_pos[i]) * 10 for i in range(3)]  # proportional control
-        p.resetBaseVelocity(gripper_id, linearVelocity=velocity)
+def move_gripper(open_length, force=60, max_velocity=None):
+    """Move gripper to specified opening."""
+    open_angle = calc_gripper_angle(open_length)
+    if max_velocity is not None:
+        p.setJointMotorControl2(gripper_id, mimic_parent_id, p.POSITION_CONTROL,
+                                targetPosition=open_angle, force=force, maxVelocity=max_velocity)
     else:
-        p.resetBasePositionAndOrientation(gripper_id, pos, gripper_start_ori)
+        p.setJointMotorControl2(gripper_id, mimic_parent_id, p.POSITION_CONTROL,
+                                targetPosition=open_angle, force=force)
+
+def set_gripper_position(pos, orientation=None):
+    """Move gripper to position using constraint."""
+    if orientation is None:
+        orientation = gripper_start_ori
+    p.changeConstraint(constraint_id, jointChildPivot=pos,
+                      jointChildFrameOrientation=orientation, maxForce=500)
+
+def set_high_friction(body_id):
+    """Apply maximum friction to all links of a body."""
+    for i in range(-1, p.getNumJoints(body_id)):
+        p.changeDynamics(body_id, i, **FRICTION_PARAMS)
+
+def move_to_height(x, y, z_start, z_end, steps):
+    """Smoothly move gripper from z_start to z_end height."""
+    z_step = (z_end - z_start) / steps
+    for step in range(steps):
+        z_current = z_start + z_step * step
+        set_gripper_position([x, y, z_current])
+        step_simulation()
 
 def grasp_and_lift(obj_id, obj_pos, lift_height=0.4, approach_steps=60, lift_steps=150, hold_time=10.0):
-    """
-    Grasp an object and lift it to a target height, then hold it.
+    """Grasp an object and lift it to a target height, then hold it."""
+    # Calculate key heights
+    grasp_height = obj_pos[2] + GRIPPER_OFFSET
+    approach_height = grasp_height + APPROACH_OFFSET
+    x, y = obj_pos[0], obj_pos[1]
     
-    Args:
-        obj_id: PyBullet object ID to grasp
-        obj_pos: [x, y, z] position of the object
-        lift_height: Target height to lift to (relative to grasp position)
-        approach_steps: Number of steps for smooth descent to grasp position
-        lift_steps: Number of simulation steps for lifting
-        hold_time: Time (in seconds) to hold the object at lifted height
-    """
-    # Height of gripper base when fingers are at object height
-    # Gripper is upside down, so base needs to be ~12cm above object to align fingers
-    # Adding extra 0.5cm to prevent initial clipping
-    grasp_height = obj_pos[2] + 0.125
-    time_step = 1./240.
+    # Apply maximum friction to prevent slipping
+    set_high_friction(obj_id)
+    set_high_friction(gripper_id)
     
-    # --- Set friction on contact surfaces ---
-    # Set MAXIMUM friction on object (all links)
-    for i in range(-1, p.getNumJoints(obj_id)):
-        p.changeDynamics(obj_id, i, 
-                        lateralFriction=20.0,      # Very high friction
-                        rollingFriction=0.5,       # Prevent rolling
-                        spinningFriction=0.5,      # Prevent spinning
-                        contactStiffness=10000,    # Very stiff contact
-                        contactDamping=2000)       # High damping
-    
-    # Set MAXIMUM friction on ALL gripper links (especially finger tips)
-    for i in range(-1, p.getNumJoints(gripper_id)):
-        p.changeDynamics(gripper_id, i, 
-                        lateralFriction=20.0,      # Very high friction
-                        rollingFriction=0.5,       # Prevent rolling
-                        spinningFriction=0.5,      # Prevent spinning
-                        contactStiffness=10000,    # Very stiff contact
-                        contactDamping=2000)       # High damping
-
-    # Start position - well above the object
-    approach_height = grasp_height + 0.15
-    
-    # Open gripper fully before approaching
+    # Open gripper and descend to approach position
     move_gripper(gripper_range[1])
+    move_to_height(x, y, gripper_start_pos[2], approach_height, approach_steps)
     
-    # Smoothly move gripper down from start position to approach height
-    # Use controlled velocity to prevent gravity-induced acceleration
-    z_start = gripper_start_pos[2]
-    descent_velocity = (approach_height - z_start) / (approach_steps * time_step)
+    # Lower to grasp height
+    move_to_height(x, y, approach_height, grasp_height, 40)
     
-    for step in range(approach_steps):
-        z_current = z_start + descent_velocity * time_step * step
-        pos = [obj_pos[0], obj_pos[1], z_current]
-        set_gripper_position(pos)
-        # Set controlled velocity to counteract gravity
-        p.resetBaseVelocity(gripper_id, linearVelocity=[0, 0, descent_velocity], angularVelocity=[0, 0, 0])
-        p.stepSimulation()
-        time.sleep(time_step)
-    
-    # No pause - continue smoothly to grasp position
-
-    # Smoothly lower to grasp height - faster descent
-    descent_steps = 40
-    descent_velocity = (grasp_height - approach_height) / (descent_steps * time_step)
-    
-    for step in range(descent_steps):
-        z_current = approach_height + descent_velocity * time_step * step
-        pos = [obj_pos[0], obj_pos[1], z_current]
-        set_gripper_position(pos)
-        # Set controlled velocity to counteract gravity
-        p.resetBaseVelocity(gripper_id, linearVelocity=[0, 0, descent_velocity], angularVelocity=[0, 0, 0])
-        p.stepSimulation()
-        time.sleep(time_step)
-
-    # Brief stabilization at grasp position
-    p.resetBaseVelocity(gripper_id, linearVelocity=[0, 0, 0], angularVelocity=[0, 0, 0])
+    # Brief stabilization
     for _ in range(10):
-        p.stepSimulation()
-        time.sleep(time_step)
-
-    # --- Close gripper gently around object ---
-    # Don't close fully - leave small gap to avoid clipping
-    # Smaller gap = better contact without crushing
-    target_close_position = gripper_range[0] + 0.001  # Leave 1mm gap
-    open_angle = 0.715 - math.asin((target_close_position-0.010)/0.1143)
+        step_simulation()
     
-    # Close with MAXIMUM force and slow speed for firm grip
-    print("Closing gripper with maximum force...")
-    p.setJointMotorControl2(gripper_id, mimic_parent_id, p.POSITION_CONTROL,
-                            targetPosition=open_angle, force=2000, maxVelocity=0.5)
+    # Close gripper around object
+    print("Closing gripper...")
+    close_angle = calc_gripper_angle(gripper_range[0] + CLOSE_GAP)
+    move_gripper(gripper_range[0] + CLOSE_GAP, force=MAX_GRIP_FORCE, max_velocity=GRIP_VELOCITY)
+    for _ in range(200):
+        step_simulation()
     
-    # Give plenty of time for firm contact to establish
-    for i in range(200):  # Longer closing time for better grip
-        # Reset velocity every 10 steps to prevent drift
-        if i % 10 == 0:
-            p.resetBaseVelocity(gripper_id, linearVelocity=[0, 0, 0], angularVelocity=[0, 0, 0])
-        p.stepSimulation()
-        time.sleep(time_step)
-
-    # --- Lift with continuous firm grip ---
-    print(f"Starting lift phase: {lift_steps} steps, target height: {lift_height}m")
-    # Use constant upward velocity with maximum grip force
-    lift_velocity = lift_height / (lift_steps * time_step)
-    print(f"Lift velocity: {lift_velocity:.4f} m/s")
+    # Lift with continuous grip
+    print(f"Lifting {lift_height}m...")
+    z_current = grasp_height
+    z_step = lift_height / lift_steps
     
     for step in range(lift_steps):
-        # Set constant upward velocity
-        p.resetBaseVelocity(gripper_id, linearVelocity=[0, 0, lift_velocity], angularVelocity=[0, 0, 0])
-        
-        # MAXIMUM grip force to prevent slipping - this is the key!
+        z_current += z_step
+        set_gripper_position([x, y, z_current])
         p.setJointMotorControl2(gripper_id, mimic_parent_id, p.POSITION_CONTROL,
-                                targetPosition=open_angle, force=2000, maxVelocity=0.5)
-
-        p.stepSimulation()
-        time.sleep(time_step)
+                                targetPosition=close_angle, force=MAX_GRIP_FORCE, maxVelocity=GRIP_VELOCITY)
+        step_simulation()
         
-        # Progress indicator
         if step % 100 == 0 and step > 0:
-            progress_pct = (step / lift_steps) * 100
-            current_pos, _ = p.getBasePositionAndOrientation(gripper_id)
-            print(f"  Lifting: {progress_pct:.1f}% complete, height: {current_pos[2]:.3f}m")
+            pos, _ = p.getBasePositionAndOrientation(gripper_id)
+            print(f"  {100*step//lift_steps}% complete, height: {pos[2]:.3f}m")
     
-    # Stop upward motion
-    p.resetBaseVelocity(gripper_id, linearVelocity=[0, 0, 0], angularVelocity=[0, 0, 0])
-    
-    # --- Hold phase - maintain grip and position to observe stability ---
-    print(f"Holding object at lifted height for {hold_time} seconds to check grip stability...")
-    hold_steps = int(hold_time / time_step)
-    
-    # Get final position to maintain
-    final_pos, _ = p.getBasePositionAndOrientation(gripper_id)
-    hold_height = final_pos[2]
+    # Hold and observe
+    print(f"Holding for {hold_time}s...")
+    hold_steps = int(hold_time / TIME_STEP)
     
     for step in range(hold_steps):
-        # Get current position
-        current_pos, _ = p.getBasePositionAndOrientation(gripper_id)
-        
-        # Apply small corrective velocity if drifting
-        height_error = hold_height - current_pos[2]
-        corrective_velocity = height_error * 50.0  # Gentle proportional control
-        
-        # Set velocity to counteract any drift
-        p.resetBaseVelocity(gripper_id, linearVelocity=[0, 0, corrective_velocity], angularVelocity=[0, 0, 0])
-        
-        # MAXIMUM grip force to prevent slipping
         p.setJointMotorControl2(gripper_id, mimic_parent_id, p.POSITION_CONTROL,
-                                targetPosition=open_angle, force=2000, maxVelocity=0.5)
+                                targetPosition=close_angle, force=MAX_GRIP_FORCE, maxVelocity=GRIP_VELOCITY)
+        step_simulation()
         
-        p.stepSimulation()
-        time.sleep(time_step)
-        
-        # Print status every second
-        if step % int(1.0 / time_step) == 0:
-            elapsed = step * time_step
-            remaining = hold_time - elapsed
-            print(f"  Holding... {remaining:.1f}s remaining, height: {current_pos[2]:.3f}m")
+        if step % int(1.0 / TIME_STEP) == 0:
+            remaining = hold_time - step * TIME_STEP
+            pos, _ = p.getBasePositionAndOrientation(gripper_id)
+            print(f"  {remaining:.1f}s remaining, height: {pos[2]:.3f}m")
 
-# ---------- Pick-Up Sequence ----------
-
-# Execute grasp and lift with extended hold time
-print("Starting grasp and lift sequence...")
-print(f"Target: Lift cube from {box_pos[2]:.3f}m to {box_pos[2] + 0.3:.3f}m")
-grasp_and_lift(box_id, box_pos, lift_height=0.3, lift_steps=200, hold_time=15.0)
-
-# Keep GUI open for additional observation
-print("\nGrasp and lift complete! Check if the object stayed gripped.")
-print("Keeping simulation window open for final observation...")
-time.sleep(10)
-p.disconnect()
+# ========== MAIN EXECUTION ==========
+if __name__ == "__main__":
+    print("=== Grasp and Lift Sequence ===")
+    print(f"Target: Lift cube from {box_pos[2]:.3f}m to {box_pos[2] + 0.3:.3f}m\n")
+    
+    grasp_and_lift(box_id, box_pos, lift_height=0.3, lift_steps=200, hold_time=15.0)
+    
+    print("\n=== Complete! ===")
+    print("Keeping simulation open for 10 seconds...")
+    time.sleep(10)
+    
+    # Cleanup
+    p.removeConstraint(constraint_id)
+    p.disconnect()

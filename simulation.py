@@ -5,8 +5,7 @@ from abc import abstractmethod
 import pandas as pd
 import numpy as np
 from objects import Box, Cylinder
-from grippers import TwoFingerGripper
-# from RandDataset import pos
+from grippers import TwoFingerGripper, NewGripper
 import random
 from data import Data
 
@@ -18,18 +17,23 @@ class Simulation:
     }
 
     gripper_dic = {
-        "two_finger": TwoFingerGripper
+        "two_finger": TwoFingerGripper,
+        "new_gripper": NewGripper
     }
 
-    def __init__(self, iterations, object="cylinder", gripper="two_finger"):
+    def __init__(self, iterations, object="cube", gripper="two_finger", visuals = "visuals"):
         self.data = Data(num_points=iterations*2 + 100)
         self.positionSuccess = {}
-        self.start_simulation(visuals="no visuals")
+        self.visuals = visuals
+        if visuals == "no visuals":
+            self.timestep = 0
+        else:
+            self.timestep = 1./240.
+        self.start_simulation()
         step_threshold = 3*240 # 3 seconds at 240Hz = 720
         step_count = 0
         self.iterations = iterations
         self.run_simulations(self.iterations, object, gripper, step_threshold, step_count)
-        
         p.disconnect()
         print(self.data.data)
         self.save_data()
@@ -47,7 +51,7 @@ class Simulation:
             self.run_one(object, gripper, gripper_pos=pos, gripper_ori=orientations)
             for j in range(2000):
                 p.stepSimulation()
-                # time.sleep(1./240.)
+                time.sleep(self.timestep)
                 contact_points_gripper = p.getContactPoints(self.gripper.id, self.object.id)
                 contact_points_plane = p.getContactPoints(self.object.id, self.plane_id)
                 if len(contact_points_gripper) >= 2 and len(contact_points_plane) == 0:
@@ -67,9 +71,9 @@ class Simulation:
         print(self.positionSuccess.values())
 # Add in ground contacts + limit gripper contact to 2 
 
-    def start_simulation(self, visuals = "visuals"):
-        visual_dict={"visuals": p.GUI, "no visuals": p.GUI}
-        p.connect(visual_dict[visuals]) # GUI = visual, Direct = no visuals = Faster
+    def start_simulation(self):
+        visual_dict={"visuals": p.GUI, "no visuals": p.DIRECT}
+        p.connect(visual_dict[self.visuals]) # GUI = visual, Direct = no visuals = Faster
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
         p.resetSimulation()
         p.setGravity(0, 0, -10)
@@ -85,7 +89,7 @@ class Simulation:
 
     def create_scene(self, object, gripper, gripper_pos = [0,0,0], gripper_ori=[0,0,0]):
         self.object = Simulation.obj_dic[object]([0,0,0.075])
-        self.gripper = Simulation.gripper_dic[gripper](base_position=gripper_pos, orientation=gripper_ori) # , orientation=gripper_ori
+        self.gripper = Simulation.gripper_dic[gripper](base_position=gripper_pos, orientation=gripper_ori, visuals=self.visuals) # , orientation=gripper_ori
         obj_id = self.object.load()
         self.object.update_name(obj_id)
 
