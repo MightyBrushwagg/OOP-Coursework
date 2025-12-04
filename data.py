@@ -18,6 +18,8 @@ class Data:
             self.data["pitch"] = all_angles[:,1]
             self.data["yaw"] = all_angles[:,2]
             # print(self.data)
+        else:
+            self.data = data
 
     def make_data(self, object_pos, num_points = 400, R = 0.5, height = 0):
         # Step 1: Generate random 3D Gaussian vectors
@@ -34,7 +36,7 @@ class Data:
 
         noisy = points + noise
         valid = np.array([[coord[0], coord[1], coord[2]] for coord in noisy.T if coord[2] >= height])
-        print(valid.shape)
+        # print(valid.shape)
         # print(valid)
         # positions = valid
         # print(positions)
@@ -85,38 +87,45 @@ class Data:
         self.remove_nans()
         print(self.data["success"].value_counts())
 
-
     def create_model_datasets(self, num_points, validation_points, test_points):
-        ## split data into train, val, test
-        ## making sure there is an equal amount of success and failure in each set
+
         if len(self.data) < (num_points/2 + validation_points/2 + test_points/2):
             raise ValueError("Not enough data points to create datasets.")
-        self.remove_nans()
-        success_data = self.data[self.data["success"] == True].reset_index()
-        failure_data = self.data[self.data["success"] == False].reset_index()
+
+        # Split into success and failure sets
+        success_data = self.data[self.data["success"] == True].reset_index(drop=True)
+        failure_data = self.data[self.data["success"] == False].reset_index(drop=True)
+
         train_data = pd.DataFrame()
         val_data = pd.DataFrame()
         test_data = pd.DataFrame()
-        # print(failure_data.loc[0])
-        
+
+        # TRAIN
         for i in range(num_points//2):
-            # print(failure_data.loc[i])
-            # row = pd.concat([success_data.loc[i], failure_data.loc[i]], axis=0).to_frame().T
-            # train_data = pd.concat([train_data, success_data.loc[i], failure_data.loc[i]], axis=0)
-            train_data = pd.concat([train_data, success_data.loc[[i]], failure_data.loc[[i]]], axis=0)
-        
+            train_data = pd.concat([train_data,
+                                    success_data.iloc[[i]],
+                                    failure_data.iloc[[i]]],
+                                axis=0)
+        # VALIDATION
         for i in range(num_points//2, num_points//2 + validation_points//2):
-            val_data = pd.concat([val_data, success_data.loc[[i]], failure_data.loc[[i]]], axis=0)
+            val_data = pd.concat([val_data,
+                                success_data.iloc[[i]],
+                                failure_data.iloc[[i]]],
+                                axis=0)
 
-        for i in range(num_points//2 + validation_points//2, num_points//2 + validation_points//2 + test_points//2):
-            test_data = pd.concat([test_data, success_data.loc[[i]], failure_data.loc[[i]]],axis=0)
-        
-        # print(train_data.reset_index())
-        # print(test_data.reset_index())
+        # TEST
+        for i in range(num_points//2 + validation_points//2,
+                    num_points//2 + validation_points//2 + test_points//2):
+            test_data = pd.concat([test_data,
+                                success_data.iloc[[i]],
+                                failure_data.iloc[[i]]],
+                                axis=0)
 
-        return train_data.reset_index(), val_data.reset_index(), test_data.reset_index()
+        return train_data.reset_index(drop=True), \
+            val_data.reset_index(drop=True), \
+            test_data.reset_index(drop=True)
 
-    def visualise_data(self):
+    def visualise_data(self, file_name="output.jpg"):
         self.remove_nans()
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
@@ -155,7 +164,7 @@ class Data:
         ax.set_zlim(0, .8)
         ax.set_xlim(-.4,.4)
         ax.set_ylim(-.4,.4)
-        plt.savefig("output.jpg")
+        plt.savefig(file_name)
         plt.show()
 
     def draw_reference_cube(self, ax, center, side):
