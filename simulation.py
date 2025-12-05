@@ -22,7 +22,7 @@ class Simulation:
     }
 
     def __init__(self, iterations, object="cube", gripper="two_finger", visuals = "visuals", file_save=None, data=None):
-        self.data = Data(num_points=iterations*2 + 100) if data is None else data
+        self.data = Data(num_points=iterations*3+100) if data is None else data
         self.positionSuccess = {}
         self.visuals = visuals
         self.object = object

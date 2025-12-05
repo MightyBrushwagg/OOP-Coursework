@@ -25,6 +25,7 @@ if __name__ == "__main__":
     parser.add_argument("--train_points", type=int, default=120, help="Number of training data points.")
     parser.add_argument("--test_points", type=int, default=300, help="Number of testing data points.")
     parser.add_argument("--val_points", type=int, default=0, help="Number of validation data points.")
+    parser.add_argument("--n_estimators", type=int, default=100, help="Number of trees in Random Forest.")
 
     args = parser.parse_args()
     # print(args.mode)
@@ -42,12 +43,12 @@ if __name__ == "__main__":
         elif args.model == "svm":
             model = SVM(data, train_points=args.train_points, test_points=args.test_points)
         elif args.model == "forest":
-            model = Random_Forest(data, train_points=args.train_points, test_points=args.test_points)
+            model = Random_Forest(data, train_points=args.train_points, test_points=args.test_points, n_estimators=args.n_estimators)
         elif args.model == "all":
             models_list = [
                 Logistic_Regression(data, train_points=args.train_points, test_points=args.test_points),
                 SVM(data, train_points=args.train_points, test_points=args.test_points),
-                Random_Forest(data, train_points=args.train_points, test_points=args.test_points)
+                Random_Forest(data, train_points=args.train_points, test_points=args.test_points, n_estimators=args.n_estimators)
             ]
             results = compare_models(models_list, data)
             

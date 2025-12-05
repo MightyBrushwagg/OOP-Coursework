@@ -7,7 +7,7 @@ import os
 from collections import namedtuple
 import math
 
-class Gripper():
+class Gripper(ABC):
     """Base gripper class that defines common gripper behavior."""
     def __init__(self, urdf_path, base_position, orientation=(0, 0, 0), visuals="visuals"):
         self.urdf_path = urdf_path
@@ -163,12 +163,6 @@ class TwoFingerGripper(Gripper):
 
             p.stepSimulation()
             time.sleep(self.timestep)
-
-    def get_position(self):
-        pass
-
-    def verify_grasp(self, obj):
-        pass
 
 class NewGripper(Gripper):
     def __init__(self, base_position=(0,0,0), orientation=(0, 0, 0), visuals="visuals"):

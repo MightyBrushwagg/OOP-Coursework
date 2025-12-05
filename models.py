@@ -45,12 +45,10 @@ class Logistic_Regression(Model):
         else:
             raise ValueError("No target provided for fitting.")
         
-
-        
         self.model.fit(X,y)
 
     def validate(self):
-        pass
+        return self.model.score(self.validate_data[["x", "y", "z", "roll", "pitch", "yaw"]], self.validate_data["success"])
 
     def test(self, data=None):
         # print(self.test_data)
@@ -79,7 +77,7 @@ class SVM(Model):
 
 
     def validate(self):
-        pass
+        return self.model.score(self.validate_data[["x", "y", "z", "roll", "pitch", "yaw"]], self.validate_data["success"])
 
     def test(self):
         return self.model.score(self.test_data[["x", "y", "z", "roll", "pitch", "yaw"]], self.test_data["success"])
@@ -88,9 +86,9 @@ class SVM(Model):
         return self.model.predict(X)
 
 class Random_Forest(Model):
-    def __init__(self, data=None, train_points=120, val_points=0, test_points=60):
+    def __init__(self, data=None, train_points=120, val_points=0, test_points=60, n_estimators=100):
         super().__init__(data, train_points, val_points, test_points)
-        self.model = RandomForestClassifier()
+        self.model = RandomForestClassifier(n_estimators=n_estimators)
 
     def fit(self, X=None, y=None):
         if X is None and self.train_data is not None:
@@ -105,7 +103,7 @@ class Random_Forest(Model):
         self.model.fit(X,y)
 
     def validate(self):
-        pass
+        return self.model.score(self.validate_data[["x", "y", "z", "roll", "pitch", "yaw"]], self.validate_data["success"])
 
     def test(self, data=None):
         data = self.test_data if data is None else data
