@@ -11,6 +11,7 @@ from sklearn import linear_model
 from sklearn import svm
 from sklearn.ensemble import RandomForestClassifier
 from abc import ABC, abstractmethod
+import joblib
 
 class Model(ABC):
     """
@@ -25,7 +26,7 @@ class Model(ABC):
         validate_data (pd.DataFrame): Validation dataset.
         test_data (pd.DataFrame): Test dataset.
     """
-    def __init__(self, data=None, train_points=None, val_points=None, test_points=None):
+    def __init__(self, data=None, train_points=None, val_points=None, test_points=None, shuffle=True):
         """
         Initialize the model with data.
         
@@ -39,7 +40,7 @@ class Model(ABC):
             self.data = data
             # Split data into train/validation/test sets
             self.train_data, self.validate_data, self.test_data = \
-                self.data.create_model_datasets(train_points, val_points, test_points)
+                self.data.create_model_datasets(train_points, val_points, test_points, shuffle=shuffle)
             # Shuffle training data for better learning
             self.train_data = self.train_data.sample(frac=1).reset_index(drop=True)
 
@@ -70,6 +71,26 @@ class Model(ABC):
         """
         pass
 
+    @abstractmethod
+    def save_model(self, filename):
+        """
+        Save the trained model to a file.
+        
+        Args:
+            filename (str): Path to the file where the model will be saved.
+        """
+        
+        joblib.dump(self.model, filename)
+
+    def load_model(self, filename):
+        """
+        Load a trained model from a file.
+        
+        Args:
+            filename (str): Path to the file from which the model will be loaded.
+        """
+        self.model = joblib.load(filename)
+
 
 class Logistic_Regression(Model):
     """
@@ -78,7 +99,7 @@ class Logistic_Regression(Model):
     Uses scikit-learn's LogisticRegression for binary classification
     (success/failure) based on gripper position and orientation features.
     """
-    def __init__(self, data=None, train_points=120, val_points=0, test_points=60):
+    def __init__(self, data=None, train_points=120, val_points=0, test_points=60, shuffle=True):
         """
         Initialize Logistic Regression model.
         
@@ -88,7 +109,7 @@ class Logistic_Regression(Model):
             val_points (int, optional): Number of validation points. Defaults to 0.
             test_points (int, optional): Number of test points. Defaults to 60.
         """
-        super().__init__(data, train_points, val_points, test_points)
+        super().__init__(data, train_points, val_points, test_points, shuffle=shuffle)
         self.model = linear_model.LogisticRegression()
 
     def fit(self, X=None, y=None):
@@ -103,6 +124,7 @@ class Logistic_Regression(Model):
             ValueError: If no data or target is provided.
         """
         if X is None and self.train_data is not None:
+            print(self.train_data)
             X = self.train_data[["x", "y", "z", "roll", "pitch", "yaw"]]
         else:
             raise ValueError("No data provided for fitting.")
@@ -150,6 +172,10 @@ class Logistic_Regression(Model):
         """
         return self.model.predict(X)
         
+    def save_model(self, filename=None):
+        filename = filename if filename else "logistic_regression_model.pkl"
+        return super().save_model(filename)
+    
 class SVM(Model):
     """
     Support Vector Machine model for grasp success prediction.
@@ -157,7 +183,7 @@ class SVM(Model):
     Uses scikit-learn's SVC (Support Vector Classifier) for binary classification
     of grasp success based on gripper position and orientation features.
     """
-    def __init__(self, data=None, train_points=120, val_points=0, test_points=60):
+    def __init__(self, data=None, train_points=120, val_points=0, test_points=60, shuffle=True):
         """
         Initialize SVM model.
         
@@ -167,7 +193,7 @@ class SVM(Model):
             val_points (int, optional): Number of validation points. Defaults to 0.
             test_points (int, optional): Number of test points. Defaults to 60.
         """
-        super().__init__(data, train_points, val_points, test_points)
+        super().__init__(data, train_points, val_points, test_points, shuffle=shuffle)
         self.model = svm.SVC()
 
     def fit(self, X=None, y=None):
@@ -225,6 +251,11 @@ class SVM(Model):
         """
         return self.model.predict(X)
 
+
+    def save_model(self, filename=None):
+        filename = filename if filename else "svm_model.pkl"
+        return super().save_model(filename)
+
 class Random_Forest(Model):
     """
     Random Forest model for grasp success prediction.
@@ -233,7 +264,7 @@ class Random_Forest(Model):
     of grasp success. Random forests are ensemble methods that combine
     multiple decision trees for robust predictions.
     """
-    def __init__(self, data=None, train_points=120, val_points=0, test_points=60):
+    def __init__(self, data=None, train_points=120, val_points=0, test_points=60, n_estimators=100, shuffle=True):
         """
         Initialize Random Forest model.
         
@@ -243,8 +274,8 @@ class Random_Forest(Model):
             val_points (int, optional): Number of validation points. Defaults to 0.
             test_points (int, optional): Number of test points. Defaults to 60.
         """
-        super().__init__(data, train_points, val_points, test_points)
-        self.model = RandomForestClassifier()
+        super().__init__(data, train_points, val_points, test_points, shuffle=shuffle)
+        self.model = RandomForestClassifier(n_estimators=n_estimators)
 
     def fit(self, X=None, y=None):
         """
@@ -258,6 +289,7 @@ class Random_Forest(Model):
             ValueError: If no data or target is provided.
         """
         if X is None and self.train_data is not None:
+            print(X)
             X = self.train_data[["x", "y", "z", "roll", "pitch", "yaw"]]
         else:
             raise ValueError("No data provided for fitting.")
@@ -293,7 +325,7 @@ class Random_Forest(Model):
             data["success"]
         )
     
-    def predict(self, X):
+    def predict(self, X, y):
         """
         Make predictions on new data.
         
@@ -303,8 +335,13 @@ class Random_Forest(Model):
         Returns:
             numpy.ndarray: Predicted success values (0 or 1).
         """
-        return self.model.predict(X)
+        predictions = self.model.predict(X)
+        accuracy = np.sum(predictions == y.values)
+        return f"Predictions: {predictions}, \nAccuracy: {accuracy}/{len(y)}"
 
+    def save_model(self, filename=None):
+        filename = filename if filename else "random_forest_model.pkl"
+        return super().save_model(filename)
 
 def compare_models(models, data=None):
     """
@@ -325,4 +362,5 @@ def compare_models(models, data=None):
         model.fit()  # Train the model
         accuracy = model.test()  # Evaluate on test set
         results[model.__class__.__name__] = accuracy
+        # model.save_model(f"Models/saved_models/{model.__class__.__name__}_model.pkl")
     return results

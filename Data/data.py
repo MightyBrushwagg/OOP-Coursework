@@ -95,6 +95,9 @@ class Data:
             path (str): Path to CSV file containing simulation data.
         """
         self.data = pd.read_csv(path)
+        # print("Columns in imported data:", self.data.columns.tolist())  # Debug line
+        # print("First few rows:")
+        # print(self.data.head())
 
     def upload_data(self, path):
         """
@@ -106,7 +109,7 @@ class Data:
             path (str): Path to save CSV file.
         """
         self.remove_nans()
-        self.data.to_csv(path)
+        self.data.to_csv(path, index=False)
     
     def generate_angle(self, gripper_pos, object_pos):
         """
@@ -179,7 +182,7 @@ class Data:
         self.remove_nans()
         print(self.data["success"].value_counts())
 
-    def create_model_datasets(self, num_points, validation_points, test_points):
+    def create_model_datasets(self, num_points, validation_points, test_points, shuffle=False):
         """
         Split data into balanced train/validation/test sets.
         
@@ -200,7 +203,9 @@ class Data:
         # Check if enough data is available
         required_points = (num_points/2 + validation_points/2 + test_points/2)
         if len(self.data) < required_points:
-            raise ValueError("Not enough data points to create datasets.")
+            raise ValueError(f"Not enough data points to create datasets. You only have {len(self.data)} points, but you need at least {required_points}.")
+        
+        self.data = self.data.sample(frac=1).reset_index(drop=True) if shuffle else self.data
 
         # Split into success and failure sets
         success_data = self.data[self.data["success"] == True].reset_index(drop=True)
@@ -227,7 +232,7 @@ class Data:
         # TEST: Continue from where validation left off
         start_idx = num_points//2 + validation_points//2
         end_idx = start_idx + test_points//2
-        for i in range(start_idx, end_idx):
+        for i in range(start_idx, end_idx-1):
             test_data = pd.concat([test_data,
                                 success_data.iloc[[i]],
                                 failure_data.iloc[[i]]],
