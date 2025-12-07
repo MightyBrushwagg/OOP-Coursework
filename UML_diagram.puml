@@ -1,0 +1,226 @@
+@startuml OOP Coursework - Robotic Grasping Simulation
+
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam packageFontSize 20
+skinparam ranksep 30
+skinparam arrowThickness 3
+skinparam arrowFontSize 14
+skinparam arrowFontStyle bold
+skinparam class {
+    BackgroundColor #FEFECE
+    BorderColor #A80036
+    ArrowColor #A80036
+}
+
+' ============= SIMULATION PACKAGE (TOP) =============
+package "Simulation" #DDDDDD {
+    class SimulationClass as "Simulation" {
+        - data: Data
+        - positionSuccess: dict
+        - visuals: str
+        - object: str
+        - gripper: str
+        - timestep: float
+        - file_save: str
+        - step_threshold: int
+        - step_count: int
+        - iterations: int
+        - plane_id: int
+        + {static} obj_dic: dict
+        + {static} gripper_dic: dict
+        --
+        + __init__(iterations, object, gripper, visuals, file_save, data)
+        + run_simulations(iterations, object, gripper, step_threshold, step_count, save)
+        + start_simulation(): int
+        + run_one(object, gripper, gripper_pos, gripper_ori)
+        + save_data(name)
+        + create_scene(object, gripper, gripper_pos, gripper_ori)
+        + reset_scene()
+        + set_random_position()
+    }
+}
+
+' ============= MIDDLE ROW PACKAGES (Data, Grippers, Objects) =============
+together {
+    package "Data" #DDDDDD {
+        class DataClass as "Data" {
+            - data: DataFrame
+            --
+            + __init__(data, num_points, object_pos)
+            + make_data(object_pos, num_points, R, height): tuple
+            + import_data(path)
+            + upload_data(path)
+            + generate_angle(gripper_pos, object_pos): ndarray
+            + update_success(idx, success)
+            + remove_nans()
+            + statistics()
+            + create_model_datasets(num_points, val_points, test_points): tuple
+            + visualise_data(file_name)
+            + draw_reference_cube(ax, center, side)
+        }
+    }
+
+    package "Grippers" #DDDDDD {
+        abstract class Gripper <<abstract>> {
+            - urdf_path: str
+            - base_position: tuple
+            - id: int
+            - constraint_id: int
+            - grasp_moving: bool
+            - orientation: tuple
+            - visuals: str
+            - timestep: float
+            --
+            + __init__(urdf_path, base_position, orientation, visuals)
+            + load(): int
+            + attach_fixed(offset)
+            + move(x, y, z, roll, pitch, yaw)
+            + update_camera(z, yaw)
+            + {abstract} start()
+            + {abstract} open()
+            + {abstract} close()
+            + {abstract} generate_angles(gripper_pos, object_pos): ndarray
+            + {abstract} target_position(obj): tuple
+            + {abstract} grasp_and_lift(obj, lift_height, lift_steps)
+        }
+
+        class TwoFingerGripper {
+            --
+            + __init__(base_position, orientation, visuals)
+            + start()
+            + open()
+            + close()
+            + generate_angles(gripper_pos, object_pos): ndarray
+            + target_position(obj): tuple
+            + grasp_and_lift(obj, lift_height, lift_steps)
+        }
+
+        class NewGripper {
+            - mimic_parent_id: int
+            - mimic_child_multiplier: dict
+            - gripper_range: list
+            --
+            + __init__(base_position, orientation, visuals)
+            + start()
+            + calc_gripper_angle(open_length): float
+            + move_gripper(open_length, force, max_velocity)
+            + open()
+            + close(force, max_velocity)
+            + generate_angles(gripper_pos, object_pos): ndarray
+            + target_position(obj): tuple
+            + grasp_and_lift(obj, lift_height, lift_steps)
+        }
+    }
+
+    package "Objects" #DDDDDD {
+        abstract class SceneObject <<abstract>> {
+            - urdf_file: str
+            - position: list
+            - orientation: tuple
+            - id: int
+            - name: str
+            --
+            + __init__(urdf_file, position, orientation)
+            + load(): int
+            + {abstract} update_name(name, shape)
+        }
+
+        class Box {
+            - grasp_height: float
+            --
+            + __init__(position, orientation)
+            + update_name(name, shape): str
+        }
+
+        class Cylinder {
+            - grasp_height: float
+            --
+            + __init__(position, orientation)
+            + update_name(name, shape): str
+        }
+    }
+}
+
+' ============= MODELS PACKAGE (BOTTOM ROW) =============
+package "Models" #DDDDDD {
+    abstract class Model <<abstract>> {
+        - data: Data
+        - train_data: DataFrame
+        - validate_data: DataFrame
+        - test_data: DataFrame
+        --
+        + __init__(data, train_points, val_points, test_points)
+        + {abstract} fit()
+        + {abstract} validate()
+        + {abstract} test()
+    }
+
+    class Logistic_Regression {
+        - model: LogisticRegression
+        --
+        + __init__(data, train_points, val_points, test_points)
+        + fit(X, y)
+        + validate()
+        + test(data): float
+        + predict(X): ndarray
+    }
+
+    class SVM {
+        - model: SVC
+        --
+        + __init__(data, train_points, val_points, test_points)
+        + fit(X, y)
+        + validate()
+        + test(): float
+        + predict(X): ndarray
+    }
+
+    class Random_Forest {
+        - model: RandomForestClassifier
+        --
+        + __init__(data, train_points, val_points, test_points)
+        + fit(X, y)
+        + validate()
+        + test(data): float
+        + predict(X): ndarray
+    }
+}
+
+' ============= INHERITANCE RELATIONSHIPS =============
+Model <|-- Logistic_Regression
+Model <|-- SVM
+Model <|-- Random_Forest
+
+Gripper <|-- TwoFingerGripper
+Gripper <|-- NewGripper
+
+SceneObject <|-- Box
+SceneObject <|-- Cylinder
+
+' ============= ASSOCIATION/COMPOSITION RELATIONSHIPS =============
+SimulationClass o-down- DataClass : contains >
+SimulationClass ..down..> Gripper : creates >
+SimulationClass ..down..> SceneObject : creates >
+Model -up--> DataClass : uses >
+
+' ============= LAYOUT CONTROL =============
+' Row 1: Simulation at top center
+' Row 2: Data (left) - Grippers (center) - Objects (right)
+' Row 3: Models (bottom, below everything)
+
+' Middle row horizontal alignment
+DataClass -[hidden]right- Gripper
+Gripper -[hidden]right- SceneObject
+
+' Models below middle row
+Gripper -[hidden]down- Model
+
+' ============= UTILITY FUNCTION NOTE =============
+note bottom of Model
+  compare_models(models, data) -> dict
+  Utility function to train and
+  compare multiple models
+end note
+
+@enduml

@@ -134,6 +134,78 @@ class Gripper(ABC):
             cameraTargetPosition=[0.5, 0.3, z]
         )
 
+    @abstractmethod 
+    def start(self):
+        """
+        Initialize gripper to starting position.
+        
+        Must be called after loading the gripper. Sets up initial joint
+        positions and any necessary constraints.
+        """
+        pass
+
+    @abstractmethod
+    def open(self):
+        """
+        Open the gripper fingers to their maximum extent.
+        """
+        pass
+
+    @abstractmethod
+    def close(self):
+        """
+        Close the gripper fingers.
+        """
+        pass
+
+    @abstractmethod
+    def generate_angles(self, gripper_pos, object_pos):
+        """
+        Calculate gripper orientation angles to point towards an object.
+        
+        Args:
+            gripper_pos (list): Gripper position [x, y, z].
+            object_pos (list): Target object position [x, y, z].
+            
+        Returns:
+            numpy.ndarray: Array of [roll, pitch, yaw] angles in radians.
+        """
+        pass
+
+    @abstractmethod
+    def target_position(self, obj):
+        """
+        Calculate target position and approach position for grasping.
+        
+        Args:
+            obj: Object instance with a position attribute.
+            
+        Returns:
+            tuple: (target_pos, approach_pos) where:
+                - target_pos: numpy array [x, y, z] - final grasp position
+                - approach_pos: list [x, y, z] - initial approach position
+        """
+        pass
+
+    @abstractmethod
+    def grasp_and_lift(self, obj, lift_height=0.4, lift_steps=150):
+        """
+        Perform a complete grasping and lifting sequence.
+        
+        Executes a multi-phase grasp operation:
+        1. Move above object
+        2. Lower to grasp height
+        3. Close gripper
+        4. Lift object while maintaining grip
+        
+        Args:
+            obj: Object instance to grasp (must have position and grasp_height attributes).
+            lift_height (float, optional): Height to lift object to. Defaults to 0.4.
+            lift_steps (int, optional): Number of simulation steps for lifting. Defaults to 150.
+        """
+        pass
+
+
 
 class TwoFingerGripper(Gripper):
     """
@@ -312,26 +384,6 @@ class TwoFingerGripper(Gripper):
             p.stepSimulation()
             time.sleep(self.timestep)
 
-    def get_position(self):
-        """
-        Get current gripper position.
-        
-        Returns:
-            NotImplemented: Method to be implemented in future versions.
-        """
-        pass
-
-    def verify_grasp(self, obj):
-        """
-        Verify if object is successfully grasped.
-        
-        Args:
-            obj: Object instance to check.
-            
-        Returns:
-            NotImplemented: Method to be implemented in future versions.
-        """
-        pass
 
 class NewGripper(Gripper):
     """
@@ -618,24 +670,3 @@ class NewGripper(Gripper):
             p.stepSimulation()
             time.sleep(self.timestep)
     
-    def get_position(self):
-        """
-        Get current gripper position.
-        
-        Returns:
-            NotImplemented: Method to be implemented in future versions.
-        """
-        pass
-    
-    def verify_grasp(self, obj):
-        """
-        Verify if object is successfully grasped.
-        
-        Args:
-            obj: Object instance to check.
-            
-        Returns:
-            NotImplemented: Method to be implemented in future versions.
-        """
-        pass
-        
