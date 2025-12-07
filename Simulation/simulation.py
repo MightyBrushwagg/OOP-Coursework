@@ -164,9 +164,11 @@ class Simulation:
         
         # Save results if requested
         if save:
-            self.save_data()
+            self.save_data("Data/" + self.file_save)
             # Generate visualization plot
-            self.data.visualise_data(self.file_save.replace(".csv", ".jpg")) 
+            # save the plot in the Data folder with the same name as the csv but with .jpg extension
+            self.data.visualise_data("Data/" + self.file_save.replace(".csv", ".jpg"))
+            # self.data.visualise_data("Data/" + self.file_save.replace(".csv", ".jpg")) 
 
     def start_simulation(self):
         """
@@ -277,15 +279,3 @@ class Simulation:
         # Remove bodies from simulation
         p.removeBody(self.gripper.id)
         p.removeBody(self.object.id)
-
-    def set_random_position(self):
-        """
-        Generate random gripper position and orientation.
-        
-        This method is a placeholder for future functionality to generate
-        random positions for data collection.
-        
-        Returns:
-            NotImplemented: Method to be implemented in future versions.
-        """
-        pass
