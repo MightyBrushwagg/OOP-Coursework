@@ -153,8 +153,8 @@ class Simulation:
                     if step_count >= step_threshold and verify_once == True:
                         verify_once = False  # Mark as successful
                         break
-                else:
-                    step_count = 0  # Reset counter if condition not met
+                # else:
+                #     step_count = 0  # Reset counter if condition not met
             
             # Clean up scene for next iteration
             self.reset_scene()
@@ -163,6 +163,7 @@ class Simulation:
             self.data.update_success(i, success=(not verify_once))
         
         # Save results if requested
+        self.data.statistics()
         if save:
             self.save_data("Data/" + self.file_save)
             # Generate visualization plot

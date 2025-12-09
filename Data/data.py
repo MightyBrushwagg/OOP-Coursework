@@ -257,7 +257,7 @@ class Data:
             val_data.reset_index(drop=True), \
             test_data.reset_index(drop=True)
 
-    def visualise_data(self, file_name="output.jpg"):
+    def visualise_data(self, file_name="output.jpg", title=None):
         """
         Create a 3D visualization of gripper positions and orientations.
         
@@ -303,7 +303,8 @@ class Data:
         ax.set_xlabel('X axis')
         ax.set_ylabel('Y axis')
         ax.set_zlabel('Z axis')
-        ax.set_title('Gripper Positions around a Reference Cube')
+        title = title if title is not None else '3D Gripper Positions and Orientations'
+        ax.set_title(title)
         ax.set_box_aspect([1, 1, 1])  # Equal scaling for x, y, z
         
         # Set axis limits

@@ -21,6 +21,7 @@ if __name__ == "__main__":
     from Simulation.simulation import Simulation
     from Data.data import Data
     from Models.models import Logistic_Regression, SVM, Random_Forest, compare_models
+    import matplotlib.pyplot as plt
     import argparse
     
     parser = argparse.ArgumentParser()
@@ -73,6 +74,12 @@ if __name__ == "__main__":
             model.fit()
             model.save_model(f"Models/saved_models/{args.object}_{args.gripper}_{args.model}_model.pkl")
             print(f"{args.model} test accuracy: {model.test():.2f}")
+            disp = model.confusion()
+
+            disp.plot()
+            plt.title(f"Confusion Matrix for {args.object} with {args.gripper} gripper")
+            plt.savefig(f"Models/saved_models/{args.object}_{args.gripper}_{args.model}_confusion_matrix.jpg")
+            plt.show()
 
     elif args.mode == "test":
         print("Testing model...")
