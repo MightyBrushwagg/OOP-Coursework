@@ -168,11 +168,11 @@ class Simulation:
             self.save_data("Data/" + self.file_save)
             # Generate visualization plot
             # save the plot in the Data folder with the same name as the csv but with .jpg extension
-            self.data.visualise_data("Data/" + self.file_save.replace(".csv", ".jpg"))
+            self.data.visualise_data("Data/" + self.file_save.replace(".csv", ".jpg"), title=f"Gripper Positions for {object} with {gripper}")
             # self.data.visualise_data("Data/" + self.file_save.replace(".csv", ".jpg")) 
 
         else:
-            self.data.visualise_data(file_name=None)
+            self.data.visualise_data(file_name=None, title=f"Gripper Positions for {object} with {gripper}")
 
     def start_simulation(self):
         """

@@ -34,7 +34,7 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, default="logistic_regression", choices=models, help="Type of model to train.")
     parser.add_argument("--file_save", type=str, default=None, help="File name to save simulation data.")
     parser.add_argument("--train_points", type=int, default=120, help="Number of training data points.")
-    parser.add_argument("--test_points", type=int, default=300, help="Number of testing data points.")
+    parser.add_argument("--test_points", type=int, default=100, help="Number of testing data points.")
     parser.add_argument("--val_points", type=int, default=0, help="Number of validation data points.")
     parser.add_argument("--n_estimators", type=int, default=100, help="Number of trees in Random Forest.")
     parser.add_argument("--shuffle", type=str2bool, default=True, help="Whether to shuffle data before splitting.")
