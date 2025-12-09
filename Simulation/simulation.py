@@ -170,6 +170,9 @@ class Simulation:
             self.data.visualise_data("Data/" + self.file_save.replace(".csv", ".jpg"))
             # self.data.visualise_data("Data/" + self.file_save.replace(".csv", ".jpg")) 
 
+        else:
+            self.data.visualise_data(file_name=None)
+
     def start_simulation(self):
         """
         Initialize the PyBullet physics simulation environment.

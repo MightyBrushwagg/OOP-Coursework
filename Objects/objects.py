@@ -117,7 +117,7 @@ class Cylinder(SceneObject):
     
     def __init__(self, position, orientation=None):
         """
-        Initialize the cylinder object.
+        Initialise the cylinder object.
         
         Args:
             position (list): Initial position [x, y, z] in world coordinates.

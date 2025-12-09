@@ -312,7 +312,7 @@ class Data:
         ax.set_ylim(-.4, .4)
         
         # Save and display
-        plt.savefig(file_name)
+        plt.savefig(file_name) if file_name else None
         plt.show()
 
     def draw_reference_cube(self, ax, center, side):
