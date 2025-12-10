@@ -272,7 +272,7 @@ class Data:
         """
         self.remove_nans()
         fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
+        ax = fig.add_subplot(111, projection="3d")
         directions = []
         
         # Convert Euler angles to direction vectors for visualization
@@ -300,10 +300,10 @@ class Data:
         self.draw_reference_cube(ax, (0, 0, cube_side/2), cube_side)
 
         # Set axis labels and title
-        ax.set_xlabel('X axis')
-        ax.set_ylabel('Y axis')
-        ax.set_zlabel('Z axis')
-        title = title if title is not None else '3D Gripper Positions and Orientations'
+        ax.set_xlabel("X axis")
+        ax.set_ylabel("Y axis")
+        ax.set_zlabel("Z axis")
+        title = title if title is not None else "3D Gripper Positions and Orientations"
         ax.set_title(title)
         ax.set_box_aspect([1, 1, 1])  # Equal scaling for x, y, z
         
@@ -348,7 +348,7 @@ class Data:
         cube = Poly3DCollection(
             faces,
             alpha=0.3,          # Semi-transparent
-            edgecolor='black',  # Black edges
-            facecolor='orange'  # Orange faces
+            edgecolor="black",  # Black edges
+            facecolor="orange"  # Orange faces
         )
         ax.add_collection3d(cube)

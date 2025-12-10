@@ -9,12 +9,12 @@ models = ["logistic_regression", "svm", "forest", "all"]
 def str2bool(v):
     if isinstance(v, bool):
         return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+    if v.lower() in ("yes", "true", "t", "y", "1"):
         return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+    elif v.lower() in ("no", "false", "f", "n", "0"):
         return False
     else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
+        raise argparse.ArgumentTypeError("Boolean value expected.")
 
 if __name__ == "__main__":
 
@@ -83,9 +83,6 @@ if __name__ == "__main__":
 
     elif args.mode == "test":
         print("Testing model...")
-        # run simulation to generate new data
-        # sim = Simulation(iterations=args.predict, object=args.object, gripper=args.gripper, visuals=args.visuals, file_save=args.file_save)
-        # sim.run_simulations(save=True)
 
 
         data = Data()
@@ -104,31 +101,8 @@ if __name__ == "__main__":
                 SVM(data, train_points=0, test_points=0, val_points=0, shuffle=args.shuffle),
                 Random_Forest(data, train_points=0, test_points=0, n_estimators=args.n_estimators, shuffle=args.shuffle, val_points=0)
             ]
-            # results = compare_models(models_list, data)
-            # for model_name, accuracy in results.items():
-            #     print(f"{model_name} test accuracy: {accuracy:.2f}")
             
 
         model.load_model(f"Models/saved_models/{args.object}_{args.gripper}_{args.model}_model.pkl")
         predictions = model.predict(data.data[["x", "y", "z", "roll", "pitch", "yaw"]], data.data["success"])
         print(f"Predictions on new data: {predictions}")
-
-    # sim = Simulation(1000, object="cube", gripper="two_finger", visuals="no visuals")
-    """object = cube, cylinder | gripper = new_gripper, two_finger | visuals = visuals, no visuals """
-    # sim.run_simulations(save=False)
-    # # sim.save_data(save=True)
-    
-    # data = sim.data
-
-    
-    # data = Data()
-    # data.import_data("cylinder-new_gripper-data.csv")
-    # # data.remove_nans()
-    # data.visualise_data()
-    # data.statistics()
-    # logr = Logistic_Regression(data, train_points=120, test_points=300)
-    # logr.fit()
-    # print(logr.test())
-    # print(logr.predict(logr.test_data[["x", "y", "z", "roll", "pitch", "yaw"]]))
-    # print(logr.test_data["success"])
-
