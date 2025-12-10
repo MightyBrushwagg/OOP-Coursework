@@ -399,7 +399,7 @@ class NewGripper(Gripper):
         """Initialize gripper joints and setup mimic joint constraints."""
         # Parse joints
         num_joints = p.getNumJoints(self.id)
-        JointInfo = namedtuple('JointInfo', ['id', 'name', 'type', 'lower', 'upper', 'maxForce'])
+        JointInfo = namedtuple("JointInfo", ["id", "name", "type", "lower", "upper", "maxForce"])
         joints = []
         
         for i in range(num_joints):
@@ -415,13 +415,13 @@ class NewGripper(Gripper):
             p.setJointMotorControl2(self.id, jid, p.VELOCITY_CONTROL, targetVelocity=0, force=0)
         
         # Setup mimic joints
-        mimic_parent_name = 'finger_joint'
+        mimic_parent_name = "finger_joint"
         mimic_children_names = {
-            'right_outer_knuckle_joint': 1,
-            'left_inner_knuckle_joint': 1,
-            'right_inner_knuckle_joint': 1,
-            'left_inner_finger_joint': -1,
-            'right_inner_finger_joint': -1
+            "right_outer_knuckle_joint": 1,
+            "left_inner_knuckle_joint": 1,
+            "right_inner_knuckle_joint": 1,
+            "left_inner_finger_joint": -1,
+            "right_inner_finger_joint": -1
         }
         
         self.mimic_parent_id = [j.id for j in joints if j.name == mimic_parent_name][0]
@@ -479,7 +479,7 @@ class NewGripper(Gripper):
         approach_pos = [self.base_position[0] - 0.2, self.base_position[1], self.base_position[2] + 0.1]
         off = -0.12 # Need to iterate on this value
         direction = np.array(approach_pos) - np.array(obj.position)
-        direction[2] = 0 # No z term offset needed because offset doesn't change based on starting position 
+        direction[2] = 0 # No z term offset needed because offset doesn"t change based on starting position 
 
         if np.linalg.norm(direction) > 0: # No zero lengths 
             direction = direction / np.linalg.norm(direction) # Normalize direction vector
@@ -502,8 +502,8 @@ class NewGripper(Gripper):
         # --- Set friction on contact surfaces ---
         # Keep high friction values for NewGripper (they work better)
         friction_params = {
-            'lateralFriction': 20.0, 'rollingFriction': 0.5, 'spinningFriction': 0.5,
-            'contactStiffness': 10000, 'contactDamping': 2000
+            "lateralFriction": 20.0, "rollingFriction": 0.5, "spinningFriction": 0.5,
+            "contactStiffness": 10000, "contactDamping": 2000
         }
         for i in range(-1, p.getNumJoints(obj.id)):
             p.changeDynamics(obj.id, i, **friction_params)

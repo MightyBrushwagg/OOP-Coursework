@@ -88,12 +88,6 @@ class Simulation:
         self.step_count = 0
         self.iterations = iterations
         
-        # self.run_simulations(self.iterations, object, gripper, self.step_threshold, self.step_count)
-        # p.disconnect()
-        # print(self.data.data)
-        # self.save_data()
-        # self.data.statistics()
-        # self.data.visualise_data()
         
     def run_simulations(self, iterations=None, object=None, gripper=None, step_threshold=None, step_count=None, save=True):
         """
@@ -153,8 +147,6 @@ class Simulation:
                     if step_count >= step_threshold and verify_once == True:
                         verify_once = False  # Mark as successful
                         break
-                # else:
-                #     step_count = 0  # Reset counter if condition not met
             
             # Clean up scene for next iteration
             self.reset_scene()
@@ -169,7 +161,7 @@ class Simulation:
             # Generate visualization plot
             # save the plot in the Data folder with the same name as the csv but with .jpg extension
             self.data.visualise_data("Data/" + self.file_save.replace(".csv", ".jpg"), title=f"Gripper Positions for {object} with {gripper}")
-            # self.data.visualise_data("Data/" + self.file_save.replace(".csv", ".jpg")) 
+
 
         else:
             self.data.visualise_data(file_name=None, title=f"Gripper Positions for {object} with {gripper}")
